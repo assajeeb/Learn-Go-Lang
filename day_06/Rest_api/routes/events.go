@@ -1,12 +1,10 @@
 package routes
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
 	"example.com/rest-api/models"
-	"example.com/rest-api/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -37,26 +35,13 @@ func getEvents(context *gin.Context) {
 }
 
 func createEvents(context *gin.Context) {
-
-	token := context.Request.Header.Get("Authorization")
-	if token == "" {
-		context.JSON(http.StatusUnauthorized, gin.H{"message": "Unauthorized request!"})
-		return
-	}
-	userid, err := utils.VerifyToken(token)
-	if err != nil {
-		fmt.Println(token)
-		panic(err)
-		context.JSON(http.StatusBadRequest, gin.H{"message": "bad Json", "error": err})
-		return
-	}
-
 	var event models.Event
 	erro := context.ShouldBindJSON(&event)
 	if erro != nil {
 		context.JSON(http.StatusBadRequest, gin.H{"Message": "Failed to Parse request"})
 		return
 	}
+	userid := context.GetInt64("userid")
 	event.UserId = userid
 	erro = event.Save()
 	if erro != nil {
@@ -78,6 +63,11 @@ func updateEvents(context *gin.Context) {
 	event, err := models.GetEventById(id)
 	if err != nil {
 		context.JSON(http.StatusBadRequest, gin.H{"message": err})
+		return
+	}
+	userid := context.GetInt64("userid")
+	if userid != event.UserId {
+		context.JSON(http.StatusUnauthorized, gin.H{"message": "you are not authorized to update this", "eventuserid": event.UserId, "userid": userid})
 		return
 	}
 
@@ -112,6 +102,11 @@ func deleteEvent(context *gin.Context) {
 	event, err := models.GetEventById(id)
 	if err != nil {
 		context.JSON(http.StatusBadRequest, gin.H{"message": "can not fetch the event"})
+		return
+	}
+	userid := context.GetInt64("userid")
+	if userid != event.UserId {
+		context.JSON(http.StatusUnauthorized, gin.H{"message": "you are not authorized to update this"})
 		return
 	}
 
